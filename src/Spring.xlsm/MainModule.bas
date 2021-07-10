@@ -1,11 +1,9 @@
 Attribute VB_Name = "MainModule"
+Option Explicit
 Sub Main()
-    Dim d As Collection: Set d = New Collection
-    Dim dr As Collection
-    Const nrows = 5
-    Const ncols = 5
+    Const nrows = 6
+    Const ncols = 4
     
-
     Const alpha = 1#
     Const beta = 0.0001
     Const k = 1#
@@ -16,46 +14,44 @@ Sub Main()
     Dim n As Node
     Dim nn As Node
 
+    'Initial Node Creation
     Dim Nodes As Collection
     Set Nodes = New Collection
+    Dim i As Integer
     For i = 0 To nrows * ncols - 1
         Nodes.Add New Node
         Nodes(Nodes.Count).ID = i
     Next
 
+    'Node Connection
     For i = 0 To nrows * ncols - 1
+        Dim ci, ri
         ci = i Mod ncols
         ri = i \ ncols
-        Set dr = New Collection
+        Dim j As Integer
         For j = 0 To nrows * ncols - 1
+            Dim cj, rj
             cj = j Mod ncols
             rj = j \ ncols
             If ((ci = cj) And (ri = rj - 1 Or ri = rj + 1) _
                 Or (ri = rj And (ci = cj - 1 Or ci = cj + 1))) Then
                 Nodes(i + 1).Connect Nodes(j + 1)
                 Nodes(j + 1).Connect Nodes(i + 1)
-            Else
-                dr.Add 0#
-                'Debug.Print "0 ";
             End If
         Next
-        d.Add dr
-        'Debug.Print
     Next
     
-    m = d.Count
-    
+    'Main Loop
     Do
         Dim KineticEnergyTotal As Axes: Set KineticEnergyTotal = New Axes
         For Each n In Nodes
             Dim F As Axes: Set F = New Axes
             For Each nn In Nodes
                 If n Is nn Then GoTo Continue
+                Dim fij As Axes
                 If Not n.Connected(nn) Then
-                    'Debug.Print "Connected"
                     Set fij = Coulomb_force(n.Position, nn.Position)
                 Else
-                    'Debug.Print "UnConnected"
                     Set fij = Hooke_force(n.Position, nn.Position, 0.1)
                 End If
                 F.X = F.X + fij.X
@@ -78,6 +74,7 @@ Continue:
 
     Debug.Print Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 7)
     
+    Dim sh As Shape
     For Each sh In DrawSheet.Shapes
         sh.Delete
     Next
@@ -101,11 +98,16 @@ End Sub
 
 Function Coulomb_force(A As Axes, B As Axes) As Axes
     Const beta = 0.0001
+    Dim dx As Double, dy As Double
     dx = B.X - A.X
     dy = B.Y - A.Y
+    Dim ds2 As Double
     ds2 = dx ^ 2 + dy ^ 2
+    Dim ds As Double
     ds = Sqr(ds2)
+    Dim ds3 As Double
     ds3 = ds2 * ds
+    Dim con As Double
     If ds3 = 0# Then
         con = 0
     Else
@@ -118,10 +120,13 @@ End Function
 
 Function Hooke_force(A As Axes, B As Axes, dij) As Axes
     Const k = 1#
+    Dim dx As Double, dy As Double
     dx = B.X - A.X
     dy = B.Y - A.Y
+    Dim ds As Double, dl As Double
     ds = Sqr(dx ^ 2 + dy ^ 2)
     dl = ds - dij
+    Dim con As Double
     con = k * dl / ds
     Set Hooke_force = New Axes
     Hooke_force.X = con * dx

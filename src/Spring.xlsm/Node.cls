@@ -7,6 +7,7 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
+Option Explicit
 Public KineticEnergy As Axes
 Public Position As Axes
 Public Velocity As Axes
@@ -33,7 +34,8 @@ End Sub
 
 Public Function Connected(n As Node) As Boolean
     On Error GoTo Err_handler:
-    Set X = ConnectedNode.Item(n.ID)
+    Dim void As Variant
+    Set void = ConnectedNode.Item(n.ID)
     On Error GoTo 0
     Connected = True
     Exit Function
