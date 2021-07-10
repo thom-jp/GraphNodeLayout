@@ -12,6 +12,7 @@ Public Position As Axes
 Public Velocity As Axes
 Public ConnectedNode As Collection
 Public ID As String
+Public NodeShape As Shape
 
 Private Sub Class_Initialize()
     Set ConnectedNode = New Collection

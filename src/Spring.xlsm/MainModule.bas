@@ -12,6 +12,9 @@ Sub Main()
     
     Const eta = 0.99
     Const delta_t = 0.01
+    
+    Dim n As Node
+    Dim nn As Node
 
     Dim Nodes As Collection
     Set Nodes = New Collection
@@ -19,7 +22,7 @@ Sub Main()
         Nodes.Add New Node
         Nodes(Nodes.Count).ID = i
     Next
-    
+
     For i = 0 To nrows * ncols - 1
         ci = i Mod ncols
         ri = i \ ncols
@@ -42,16 +45,13 @@ Sub Main()
     
     m = d.Count
     
-    Dim n As Node
-    Dim nn As Node
-    
     Do
         Dim KineticEnergyTotal As Axes: Set KineticEnergyTotal = New Axes
         For Each n In Nodes
             Dim F As Axes: Set F = New Axes
             For Each nn In Nodes
                 If n Is nn Then GoTo Continue
-                If n.Connected(nn) Then
+                If Not n.Connected(nn) Then
                     'Debug.Print "Connected"
                     Set fij = Coulomb_force(n.Position, nn.Position)
                 Else
@@ -68,13 +68,35 @@ Continue:
             KineticEnergyTotal.Y = KineticEnergyTotal.Y + alpha * (n.Velocity.Y ^ 2)
         Next
         
-        Debug.Print "Total Kinetic Energy: " & Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 2)
+        'Debug.Print "Total Kinetic Energy: " & Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 2)
         
         For Each n In Nodes
             n.Position.X = n.Position.X + (n.Velocity.X * delta_t)
             n.Position.Y = n.Position.Y + (n.Velocity.Y * delta_t)
         Next
-    Loop Until 0.01 > Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 2)
+    Loop Until 0.0000001 > Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 7)
+
+    Debug.Print Round(Sqr(KineticEnergyTotal.X ^ 2 + KineticEnergyTotal.Y ^ 2), 7)
+    
+    For Each sh In DrawSheet.Shapes
+        sh.Delete
+    Next
+
+    For Each n In Nodes
+        Dim PosX As Single: PosX = n.Position.X * 500
+        Dim PosY As Single: PosY = n.Position.Y * 500
+        Set n.NodeShape = DrawSheet.Shapes.AddShape(msoShapeOval, PosX, PosY, 5, 5)
+    Next
+
+    For Each n In Nodes
+        For Each nn In n.ConnectedNode
+            Dim connector As Shape
+            Set connector = DrawSheet.Shapes.AddConnector(msoConnectorStraight, 1, 1, 1, 1)
+            connector.ConnectorFormat.BeginConnect n.NodeShape, 1
+            connector.ConnectorFormat.EndConnect nn.NodeShape, 1
+        Next
+    Next
+    
 End Sub
 
 Function Coulomb_force(A As Axes, B As Axes) As Axes
