@@ -9,7 +9,8 @@ Sub Main()
     Dim objectNode As Node
 
     Dim Nodes As Collection
-    Set Nodes = CreateNodes(5, 5)
+    Set Nodes = AnalyseNodes
+    'Set Nodes = CreateNodes(5, 5)
     
     Do
         Dim kineticEnergyInField As Axes: Set kineticEnergyInField = New Axes
@@ -28,7 +29,6 @@ Sub Main()
                 receivedForceSum.Y = receivedForceSum.Y + force.Y
 Continue:
             Next
-            
             subjectNode.Velocity.X = (subjectNode.Velocity.X + receivedForceSum.X * DELTA_T) * LOSS_FACTOR
             subjectNode.Velocity.Y = (subjectNode.Velocity.Y + receivedForceSum.Y * DELTA_T) * LOSS_FACTOR
             kineticEnergyInField.X = kineticEnergyInField.X + subjectNode.Velocity.X ^ 2
@@ -41,25 +41,59 @@ Continue:
         Next
     Loop Until 0.0000005 > Round(Sqr(kineticEnergyInField.X ^ 2 + kineticEnergyInField.Y ^ 2), 7)
     
-    DrawSheet.ClearAllShapes
+    'DrawSheet.ClearAllShapes
 
     'PlotOvals
     For Each subjectNode In Nodes
-        Dim PosX As Single: PosX = subjectNode.Position.X * 500
-        Dim PosY As Single: PosY = subjectNode.Position.Y * 500
-        Set subjectNode.NodeShape = DrawSheet.Shapes.AddShape(msoShapeOval, PosX, PosY, NODE_SIZE, NODE_SIZE)
+        Dim PosX As Single: PosX = subjectNode.Position.X * 1000
+        Dim PosY As Single: PosY = subjectNode.Position.Y * 1000
+        subjectNode.NodeShape.Left = PosX
+        subjectNode.NodeShape.Top = PosY
     Next
 
-    'Plot Connector
-    For Each subjectNode In Nodes
-        For Each objectNode In subjectNode.ConnectedNode
-            Dim connector As Shape
-            Set connector = DrawSheet.Shapes.AddConnector(msoConnectorStraight, 1, 1, 1, 1)
-            connector.ConnectorFormat.BeginConnect subjectNode.NodeShape, 1
-            connector.ConnectorFormat.EndConnect objectNode.NodeShape, 1
-        Next
+    Call AdjustConnectors
+    
+End Sub
+
+Sub AdjustConnectors()
+    Dim sh As Shape, a As String, b As String
+    For Each sh In Sheet1.Shapes
+        If sh.Type = msoAutoShape And sh.AutoShapeType = -2 Then
+            If sh.ConnectorFormat.BeginConnected And sh.ConnectorFormat.EndConnected Then
+            Call ConnectOvals( _
+                  sh.ConnectorFormat.BeginConnectedShape, _
+                  sh.ConnectorFormat.EndConnectedShape, _
+                  sh)
+            End If
+        End If
     Next
 End Sub
+
+Function AnalyseNodes() As Collection
+    Dim ret As Collection: Set ret = New Collection
+    Dim ov As Oval
+    For Each ov In Sheet1.Ovals
+        With New Node
+            .ID = ov.Name
+            Set .NodeShape = ov.ShapeRange(1)
+            ret.Add .Self, .ID
+        End With
+    Next
+    
+    Dim sh As Shape, a As String, b As String
+    For Each sh In Sheet1.Shapes
+        If sh.Type = msoAutoShape And sh.AutoShapeType = -2 Then
+            If sh.ConnectorFormat.BeginConnected And sh.ConnectorFormat.EndConnected Then
+                a = sh.ConnectorFormat.BeginConnectedShape.Name
+                b = sh.ConnectorFormat.EndConnectedShape.Name
+                ret(a).Connect ret(b)
+                ret(b).Connect ret(a)
+            End If
+        End If
+    Next
+    
+    Set AnalyseNodes = ret
+End Function
 
 Function CreateNodes(number_of_rows As Integer, number_of_columns As Integer) As Collection
     Dim ret As Collection
@@ -154,4 +188,67 @@ Function HookeForce(sbjPos As Axes, objPos As Axes) As Axes
     HookeForce.Y = constant * distanceY
 End Function
 
+
+Sub ConnectOvals(ov1 As Shape, ov2 As Shape, cn As Shape)
+    Dim ov1_x, ov2_x, ov1_y, ov2_y
+    ov1_x = ov1.Top + ov1.Height / 2
+    ov2_x = ov2.Top + ov2.Height / 2
+    ov1_y = ov1.Left + ov1.Width / 2
+    ov2_y = ov2.Left + ov2.Width / 2
+    
+    Dim X As Double, Y As Double
+    X = ov2_x - ov1_x
+    Y = ov2_y - ov1_y
+    
+    Dim Cond_Vertical As Boolean
+    Dim Cond_Horizontal As Boolean
+    Dim Cond_Diagonal As Boolean
+    Dim Cond_Below As Boolean
+    Dim Cond_Above As Boolean
+    Dim Cond_Right As Boolean
+    Dim Cond_Left As Boolean
+    
+    Cond_Vertical = X = 0
+    Cond_Horizontal = Y = 0
+    Cond_Below = X > 0
+    Cond_Above = Not Cond_Below
+    Cond_Right = Y > 0
+    Cond_Left = Not Cond_Right
+
+    If Not (Cond_Vertical Or Cond_Horizontal) Then 'To avoid devided by zero error.
+        Dim degree: degree = Abs(Math.Atn(Y / X) * (180 / (4 * Atn(1))))
+        Cond_Vertical = degree < 22.5
+        Cond_Horizontal = degree > 67.5
+    End If
+    
+    Cond_Diagonal = Not (Cond_Horizontal Or Cond_Vertical)
+    
+    Select Case True
+    Case Cond_Vertical And Cond_Below
+        cn.ConnectorFormat.BeginConnect ov1, 5
+        cn.ConnectorFormat.EndConnect ov2, 1
+    Case Cond_Vertical And Cond_Above
+        cn.ConnectorFormat.BeginConnect ov1, 1
+        cn.ConnectorFormat.EndConnect ov2, 5
+    Case Cond_Horizontal And Cond_Right
+        cn.ConnectorFormat.BeginConnect ov1, 7
+        cn.ConnectorFormat.EndConnect ov2, 3
+    Case Cond_Horizontal And Cond_Left
+        cn.ConnectorFormat.BeginConnect ov1, 3
+        cn.ConnectorFormat.EndConnect ov2, 7
+    Case Cond_Diagonal And Cond_Left And Cond_Below
+        cn.ConnectorFormat.BeginConnect ov1, 4
+        cn.ConnectorFormat.EndConnect ov2, 8
+    Case Cond_Diagonal And Cond_Left And Cond_Above
+        cn.ConnectorFormat.BeginConnect ov1, 2
+        cn.ConnectorFormat.EndConnect ov2, 6
+    Case Cond_Diagonal And Cond_Right And Cond_Below
+        cn.ConnectorFormat.BeginConnect ov1, 6
+        cn.ConnectorFormat.EndConnect ov2, 2
+    Case Cond_Diagonal And Cond_Right And Cond_Above
+        cn.ConnectorFormat.BeginConnect ov1, 8
+        cn.ConnectorFormat.EndConnect ov2, 4
+    End Select
+    
+End Sub
 
