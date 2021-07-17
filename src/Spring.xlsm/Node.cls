@@ -15,6 +15,10 @@ Public ConnectedNode As Collection
 Public ID As String
 Public NodeShape As Shape
 
+Public Property Get Self() As Object
+    Set Self = Me
+End Property
+
 Private Sub Class_Initialize()
     Set ConnectedNode = New Collection
     Set KineticEnergy = New Axes
